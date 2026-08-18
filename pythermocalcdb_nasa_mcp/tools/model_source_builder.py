@@ -1,6 +1,7 @@
 # SECTION: Imports
 import logging
-from typing import Optional, List
+from dataclasses import dataclass, field
+from typing import Any, Optional, List
 from pyThermoLinkDB import (
     build_components_model_source,
     build_model_source
@@ -14,9 +15,161 @@ from pyThermoDB import (
     ComponentThermoDB,
     build_component_thermodb_from_reference,
 )
+from pythermocalcdb_nasa import (
+    build_model_source_from_database as build_nasa_model_source_from_database,
+    check_component_availability,
+)
+from pythermocalcdb_nasa_mcp.interface.validation import validate_reference_content
+from pythermocalcdb_nasa_mcp.models.nasa import Source, TemperatureInput
 
 # NOTE: logger
 logger = logging.getLogger(__name__)
+
+
+# SECTION: ModelSource builder result
+@dataclass(frozen=True)
+class ModelSourceBuildResult:
+    success: bool
+    message: str
+    source: Source
+    model_source: Optional[ModelSource] = None
+    components: List[Component] = field(default_factory=list)
+    analysis: dict[str, Any] = field(default_factory=dict)
+    warnings: list[str] = field(default_factory=list)
+
+
+# SECTION: Build ModelSource from selected source
+def build_model_source_for_request(
+        components: List[Component],
+        temperature: TemperatureInput,
+        source: Source,
+        reference_content: str | None = None,
+) -> ModelSourceBuildResult:
+    if source == "database":
+        return _build_model_source_from_database(
+            components=components,
+            temperature=temperature,
+        )
+
+    if not reference_content or not reference_content.strip():
+        return ModelSourceBuildResult(
+            success=False,
+            message="reference_content must not be blank when source='reference'.",
+            source=source,
+        )
+
+    reference_validation = validate_reference_content(reference_content)
+    if not reference_validation.success:
+        return ModelSourceBuildResult(
+            success=False,
+            message=reference_validation.message,
+            source=source,
+            warnings=list(reference_validation.warnings),
+        )
+
+    model_source = build_model_source_from_reference(
+        components=components,
+        reference_content=reference_content,
+    )
+    if model_source is None:
+        return ModelSourceBuildResult(
+            success=False,
+            message="Could not build ModelSource from reference_content for the requested components.",
+            source=source,
+            components=components,
+        )
+
+    return ModelSourceBuildResult(
+        success=True,
+        message="ModelSource built from caller-supplied reference_content.",
+        source=source,
+        model_source=model_source,
+        components=components,
+        analysis={"source": source},
+    )
+
+
+# SECTION: Build ModelSource from embedded NASA SQLite database
+def _build_model_source_from_database(
+        components: List[Component],
+        temperature: TemperatureInput,
+) -> ModelSourceBuildResult:
+    try:
+        availability_results = check_component_availability(
+            components=components,
+        )
+    except Exception as exc:
+        logger.exception("Database component availability check failed.")
+        return ModelSourceBuildResult(
+            success=False,
+            message=f"NASA database availability check failed: {exc}",
+            source="database",
+        )
+
+    matched_components = availability_results.get("matched_components", [])
+    missing_components = availability_results.get("missing_components", [])
+
+    analysis = {
+        "source": "database",
+        "matched_components": [_component_to_dict(component) for component in matched_components],
+        "missing_components": [_component_to_dict(component) for component in missing_components],
+    }
+
+    if missing_components:
+        return ModelSourceBuildResult(
+            success=False,
+            message=(
+                "Some components are missing from the embedded NASA-9 database. "
+                "The MCP server does not search external scientific data; provide an externally prepared "
+                "REFERENCE and call again with source='reference'."
+            ),
+            source="database",
+            components=matched_components,
+            analysis=analysis,
+            warnings=[
+                "Missing database component: "
+                f"{component.name}/{component.formula}({component.state})"
+                for component in missing_components
+            ],
+        )
+
+    try:
+        model_source = build_nasa_model_source_from_database(
+            components=matched_components,
+            temperature=temperature,
+        )
+    except Exception as exc:
+        logger.exception("Database ModelSource build failed.")
+        return ModelSourceBuildResult(
+            success=False,
+            message=f"Could not build ModelSource from embedded NASA-9 database: {exc}",
+            source="database",
+            components=matched_components,
+            analysis=analysis,
+        )
+
+    return ModelSourceBuildResult(
+        success=True,
+        message="ModelSource built from embedded NASA-9 database.",
+        source="database",
+        model_source=model_source,
+        components=matched_components,
+        analysis=analysis,
+    )
+
+
+# SECTION: Serialize shared Component model
+def _component_to_dict(component: Component) -> dict[str, Any]:
+    if hasattr(component, "model_dump"):
+        return component.model_dump()
+    if hasattr(component, "dict"):
+        return component.dict()
+    return {
+        "name": component.name,
+        "formula": component.formula,
+        "state": component.state,
+    }
+
 
 # SECTION: Build component ThermoDB objects
 
