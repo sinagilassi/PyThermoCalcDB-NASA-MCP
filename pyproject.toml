@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pythermocalcdb-nasa-mcp"
 version = "0.1.0"
-description = ""
+description = "MCP server and orchestration layer for pythermocalcdb-nasa thermodynamic calculations."
 authors = [
     { name = "Sina Gilassi", email = "sina.gilassi@gmail.com" }
 ]
@@ -21,6 +21,7 @@ classifiers = [
 dependencies = [
     "fastmcp",
     "pythermocalcdb-nasa",
+    "PyYAML",
 ]
 
 [project.scripts]
@@ -36,4 +37,4 @@ include = ["pythermocalcdb_nasa_mcp*"]
 exclude = ["tests*", "examples*", "docs*"]
 
 [tool.setuptools.package-data]
-"pythermocalcdb_nasa_mcp" = ["data/**/*"]
+"pythermocalcdb_nasa_mcp" = ["resources/docs/*.yaml"]
