@@ -15,30 +15,52 @@ available_tools:
   calc_Keq:
     result: equilibrium constant
     typical_unit: dimensionless
+  calc_Keq_vh_shortcut:
+    result: equilibrium constant using the van't Hoff shortcut
+    typical_unit: dimensionless
 
 request_shape:
-  request:
-    name: Water-Gas Shift Reaction
-    reaction: CO(g) + H2O(g) => CO2(g) + H2(g)
-    components:
-      - name: carbon monoxide
-        formula: CO
-        state: g
-      - name: dihydrogen monoxide
-        formula: H2O
-        state: g
-      - name: carbon dioxide
-        formula: CO2
-        state: g
-      - name: dihydrogen
-        formula: H2
-        state: g
-    temperature:
-      value: 300.0
-      unit: K
-    reference_content: "REFERENCES: ..."
-    component_key: Name-Formula
-    nasa_type: nasa9
+  database_default:
+    request:
+      name: Water-Gas Shift Reaction
+      reaction: CO(g) + H2O(g) => CO2(g) + H2(g)
+      components:
+        - name: carbon monoxide
+          formula: CO
+          state: g
+        - name: dihydrogen monoxide
+          formula: H2O
+          state: g
+        - name: carbon dioxide
+          formula: CO2
+          state: g
+        - name: dihydrogen
+          formula: H2
+          state: g
+      temperature:
+        value: 398.15
+        unit: K
+      source: database
+      component_key: Name-Formula
+      nasa_type: nasa9
+  reference_fallback:
+    request:
+      name: Caller Supplied Reaction
+      reaction: A(g) => B(g)
+      components:
+        - name: component A name from prepared reference
+          formula: A
+          state: g
+        - name: component B name from prepared reference
+          formula: B
+          state: g
+      temperature:
+        value: 300.0
+        unit: K
+      source: reference
+      reference_content: "REFERENCES: ..."
+      component_key: Name-Formula
+      nasa_type: nasa9
 
 reaction_requirements:
   equation_species_format: Formula(state)
@@ -49,24 +71,27 @@ reaction_requirements:
   component_coverage: >
     Every species token in the reaction equation must appear in components with
     matching formula and state.
-  reference_coverage: >
-    Every component in the reaction must have NASA coefficients and Tmin/Tmax
-    in reference_content.
+  source_coverage: >
+    Every component in the reaction must exist in the embedded database or in
+    caller-supplied reference_content.
 
 agent_workflow:
   - Read pythermocalcdb-nasa://references/nasa-requirements.
   - Parse the reaction equation and list all Formula(state) species.
-  - Build components from the reference rows for every reactant and product.
-  - Confirm all reaction components are inside the requested temperature range.
+  - Build components for every reactant and product.
+  - Use source: database first unless the caller already supplied external REFERENCE content.
   - Call the property-specific reaction tool.
-  - For calc_Keq, report a dimensionless equilibrium constant.
-  - If success is false, correct missing species, reference rows, or temperature range.
+  - Use calc_Keq for direct equilibrium constants from dG_rxn_STD.
+  - Use calc_Keq_vh_shortcut when the user asks for the van't Hoff shortcut estimate.
+  - For calc_Keq and calc_Keq_vh_shortcut, report a dimensionless equilibrium constant.
+  - If database data is missing, ask another agent or caller to prepare REFERENCE content and retry with source: reference.
+  - If success is false, correct missing species, source rows, symbols, or temperature range.
 
 agent_boundaries:
-  reference_content_source: caller supplied
-  no_data_file_reference: >
-    Do not direct agents to bundled data examples or test fixtures. The agent
-    should request or use caller-provided pyThermoDB YAML reference_content.
+  database_source: embedded NASA-9 SQLite database
+  reference_content_source: externally prepared by caller or another agent
+  external_search: >
+    Searching external data is not the MCP server's duty.
   invalid_or_missing_data: >
     Return the structured failure to the user and explain which required
     component, symbol, or temperature range is missing.

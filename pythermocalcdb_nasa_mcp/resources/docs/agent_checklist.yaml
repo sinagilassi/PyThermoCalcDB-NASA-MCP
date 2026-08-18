@@ -4,23 +4,27 @@ purpose: >
 
 before_any_tool_call:
   - Read the relevant workflow resource.
-  - Confirm the user provided reference_content or a trustworthy source for it.
+  - Use source: database first for NASA-9 data available in the embedded SQLite database.
+  - Use source: reference only when complete external REFERENCE content has already been prepared.
+  - Do not search external data from this MCP server.
   - Do not invent component properties, NASA coefficients, or temperature ranges.
-  - Use check_yaml_reference when reference YAML validity is uncertain.
+  - Use check_yaml_reference when external reference YAML validity is uncertain.
   - Use K for temperature.unit.
 
 species_calculation_checklist:
   - Select one of calc_H_T, calc_S_T, calc_G_T, or calc_Cp_T.
-  - Verify component.name, component.formula, and component.state match reference_content.
+  - Provide component.name, component.formula, and component.state.
   - Use basis: molar unless the user explicitly asks for mass basis.
   - For mass basis, confirm MW is present.
-  - Confirm requested temperature is within Tmin/Tmax.
+  - For source: reference, confirm requested temperature is within Tmin/Tmax.
 
 reaction_calculation_checklist:
-  - Select one of calc_dH_rxn_STD, calc_dS_rxn_STD, calc_dG_rxn_STD, or calc_Keq.
+  - Select one of calc_dH_rxn_STD, calc_dS_rxn_STD, calc_dG_rxn_STD, calc_Keq, or calc_Keq_vh_shortcut.
+  - Use calc_Keq_vh_shortcut only when a van't Hoff shortcut estimate is requested.
   - Ensure the reaction equation uses state-qualified species, for example CO(g).
   - Ensure components includes every reactant and product.
-  - Ensure all reaction species exist in reference_content.
+  - Use source: database first for supported g, l, and s phases.
+  - For source: reference, ensure all reaction species exist in reference_content.
   - Confirm requested temperature is within Tmin/Tmax for every species.
 
 response_handling:
@@ -33,13 +37,15 @@ response_handling:
     - Use warnings as concrete corrections for the next call.
 
 situational_guidance:
+  database_missing_component:
+    action: "Explain that another agent or caller must prepare REFERENCE content, then retry with source: reference."
   user_requests_temperature_outside_range:
-    action: Return or explain the structured failure unless another valid reference table is supplied.
+    action: "Return or explain the structured failure unless another valid reference table is supplied."
   user_omits_reference_content:
-    action: Ask for caller-provided reference_content.
-  user_asks_for_builtin_or_example_data:
-    action: Explain that bundled examples or tests are not authoritative scientific data sources for MCP operation.
+    action: "Use source: database unless the user explicitly requested external reference data."
+  user_asks_mcp_to_search_external_data:
+    action: "Explain that external searching is outside MCP scope; another agent must create REFERENCE content."
   user_requests_pressure_dependent_property:
-    action: Explain that the exposed NASA methods do not accept pressure.
+    action: "Explain that the exposed NASA methods do not accept pressure."
   user_requests_unknown_species:
-    action: Require a matching reference row; do not approximate coefficients.
+    action: "Try source: database first; if missing, require externally prepared REFERENCE content."
