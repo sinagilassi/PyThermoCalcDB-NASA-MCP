@@ -1,4 +1,4 @@
-# PyThermoCalcDB-NASA-MCP
+# 🧪 PyThermoCalcDB-NASA-MCP
 
 [![PyPI Downloads](https://static.pepy.tech/badge/pythermocalcdb-nasa-mcp/month)](https://pepy.tech/projects/pythermocalcdb-nasa-mcp)
 ![PyPI](https://img.shields.io/pypi/v/pythermocalcdb-nasa-mcp)
@@ -6,107 +6,64 @@
 ![License](https://img.shields.io/pypi/l/pythermocalcdb-nasa-mcp)
 [![MCP](https://img.shields.io/badge/Model_Context_Protocol-Compatible-orange)](https://modelcontextprotocol.io)
 
-PyThermoCalcDB-NASA-MCP is a Model Context Protocol (MCP) server for running
-selected `pythermocalcdb-nasa` thermodynamic calculations from agents and
-MCP-compatible clients.
+PyThermoCalcDB-NASA-MCP is a Model Context Protocol server for running selected
+`pythermocalcdb-nasa` thermodynamic calculations from agents and MCP-compatible
+clients.
 
-## Overview 🌐
+## 🌐 Overview
 
-The package exposes NASA polynomial species-property, reaction-property, and
-YAML reference-validation workflows as MCP tools. Each calculation receives
-structured arguments, builds a `ModelSource` from caller-supplied `pyThermoDB`
-YAML reference content, calls the corresponding `pythermocalcdb-nasa` function,
-and returns JSON-safe data.
+The MCP package is an interface and orchestration layer. It validates structured
+requests, builds a `ModelSource`, calls deterministic `pythermocalcdb-nasa`
+functions, and returns JSON-safe results. It does not implement the scientific
+calculation itself.
 
-Use this package when an agent or MCP client needs to:
+The default source workflow uses the embedded NASA-9 SQLite database included by
+`pythermocalcdb-nasa`. If a component is unavailable locally, the MCP server
+returns a structured failure. External data search is not this MCP server's
+responsibility; another agent or caller should prepare complete pyThermoDB
+`REFERENCE` content and call the tool with `source: "reference"`.
 
-- Calculate component enthalpy, entropy, Gibbs free energy, or heat capacity.
-- Calculate standard reaction enthalpy, entropy, or Gibbs free energy changes.
-- Calculate a reaction equilibrium constant from NASA thermodynamic data.
-- Validate whether YAML reference content is usable by the pyThermoDB reference pipeline.
+Use this package to:
 
-The server does not search for, load, or assemble reference files automatically.
-Callers must pass complete YAML reference content in each tool request.
+- Calculate `H_T`, `S_T`, `G_T`, and `Cp_T` for one component.
+- Calculate `dH_rxn_STD`, `dS_rxn_STD`, `dG_rxn_STD`, `Keq`, and `Keq_vh_shortcut` for reactions.
+- Validate externally prepared pyThermoDB YAML reference content.
 
-## Requirements 📋
-
-- Python `>=3.11`
-- `pip` or `uv`
-
-## Installation 📦
+## 📦 Installation
 
 ```bash
 pip install pythermocalcdb-nasa-mcp
 ```
 
-This installs the `pythermocalcdb-nasa-mcp` command.
-
-For local development from this repository:
+For local development:
 
 ```bash
 uv sync
 ```
 
-## Running the MCP Server ▶️
+## ▶️ Running
 
-The server entrypoints are:
-
-- CLI: `pythermocalcdb-nasa-mcp`
-- Module: `python -m pythermocalcdb_nasa_mcp.server`
-
-Both support the same options.
-
-### STDIO Transport 🧵
-
-Use STDIO for local MCP desktop and agent clients:
+STDIO is the default transport:
 
 ```bash
 pythermocalcdb-nasa-mcp --mode stdio
 ```
 
-Equivalent module command:
-
-```bash
-python -m pythermocalcdb_nasa_mcp.server --mode stdio
-```
-
-When running from a local checkout with `uv`:
-
-```bash
-uv run pythermocalcdb-nasa-mcp --mode stdio
-```
-
-### HTTP Transport 🌍
-
-Use HTTP when a network-accessible MCP endpoint is needed:
+HTTP transport is also supported:
 
 ```bash
 pythermocalcdb-nasa-mcp --mode http --host 127.0.0.1 --port 8000 --path /mcp
 ```
 
-Equivalent module command:
+From a local checkout:
 
 ```bash
-python -m pythermocalcdb_nasa_mcp.server --mode http --host 127.0.0.1 --port 8000 --path /mcp
+uv run pythermocalcdb-nasa-mcp --mode stdio
 ```
 
-When running from a local checkout with `uv`:
+## 🔌 MCP Client Configuration
 
-```bash
-uv run pythermocalcdb-nasa-mcp --mode http --host 127.0.0.1 --port 8000 --path /mcp
-```
-
-## CLI Options ⌨️
-
-- `--mode`: MCP transport mode, either `stdio` or `http` (default: `stdio`)
-- `--host`: HTTP bind host (default: `127.0.0.1`)
-- `--port`: HTTP bind port (default: `8000`)
-- `--path`: HTTP endpoint path (default: `/mcp`)
-- `-V`, `--version`: print package version
-
-## MCP Client Configuration 🔌
-
-### STDIO
+🧵 STDIO:
 
 ```json
 {
@@ -119,20 +76,7 @@ uv run pythermocalcdb-nasa-mcp --mode http --host 127.0.0.1 --port 8000 --path /
 }
 ```
 
-For a source checkout managed by `uv`:
-
-```json
-{
-  "mcpServers": {
-    "pythermocalcdb-nasa": {
-      "command": "uv",
-      "args": ["run", "pythermocalcdb-nasa-mcp", "--mode", "stdio"]
-    }
-  }
-}
-```
-
-### HTTP
+🌍 HTTP:
 
 ```json
 {
@@ -144,61 +88,45 @@ For a source checkout managed by `uv`:
 }
 ```
 
-## MCP Resources 📚
-
-The server exposes four guidance resources:
+## 📚 MCP Resources
 
 - `pythermocalcdb-nasa://references/nasa-requirements`
-  - YAML guidance for required pyThermoDB reference structure, component rows,
-    NASA coefficients, supported component keys, and temperature range rules.
+  - Source policy, NASA symbols, units, temperature ranges, and agent boundaries.
 - `pythermocalcdb-nasa://workflows/species-properties`
-  - Agent workflow for `H_T`, `S_T`, `G_T`, and `Cp_T` species-property calculations.
+  - Workflow for `H_T`, `S_T`, `G_T`, and `Cp_T`.
 - `pythermocalcdb-nasa://workflows/reaction-properties`
-  - Agent workflow for `dH_rxn_STD`, `dS_rxn_STD`, `dG_rxn_STD`, and `Keq` reaction calculations.
+  - Workflow for `dH_rxn_STD`, `dS_rxn_STD`, `dG_rxn_STD`, `Keq`, and `Keq_vh_shortcut`.
 - `pythermocalcdb-nasa://guidance/agent-checklist`
-  - Resource-first checklist for reliable NASA calculation tool calls.
+  - Checklist for reliable database-first and reference-backed calls.
 
-## MCP Tools 🧰
+## 🧰 MCP Tools
 
-### Species Property Tools 🔥
-
-Species tools require `component`, `temperature`, and `reference_content`.
-Temperature must use Kelvin (`K`). Supported NASA polynomial types are `nasa7`
-and `nasa9`.
+🔥 Species tools:
 
 - `calc_H_T`
-  - Calculates component enthalpy at temperature `T`.
 - `calc_S_T`
-  - Calculates component entropy at temperature `T`.
 - `calc_G_T`
-  - Calculates component Gibbs free energy at temperature `T`.
 - `calc_Cp_T`
-  - Calculates component heat capacity at temperature `T`.
 
-### Reaction Property Tools ⚗️
-
-Reaction tools require `name`, `reaction`, `components`, `temperature`, and
-`reference_content`. Temperature must use Kelvin (`K`), and every species in
-the reaction equation must be represented in `components`.
+⚗️ Reaction tools:
 
 - `calc_dH_rxn_STD`
-  - Calculates standard enthalpy change of reaction.
 - `calc_dS_rxn_STD`
-  - Calculates standard entropy change of reaction.
 - `calc_dG_rxn_STD`
-  - Calculates standard Gibbs free energy change of reaction.
 - `calc_Keq`
-  - Calculates the reaction equilibrium constant.
+- `calc_Keq_vh_shortcut`
 
-### Utility Tool 🛠️
+🛠️ Utility tool:
 
 - `check_yaml_reference`
-  - Validates YAML reference content with the pyThermoDB custom-reference checker and returns `true` or `false`.
 
-## Input Model Notes 📝
+## 📝 Input Model Notes
 
-Calculation tools receive one Pydantic argument named `request`. Typical species
-tool input therefore looks like:
+Calculation tools receive one Pydantic argument named `request`. They use shared
+domain models from `pythermodb_settings`, including `Component`, `Temperature`,
+and `ComponentKey`.
+
+🗄️ Database-backed species request:
 
 ```json
 {
@@ -212,6 +140,29 @@ tool input therefore looks like:
       "value": 300.0,
       "unit": "K"
     },
+    "source": "database",
+    "component_key": "Name-Formula",
+    "nasa_type": "nasa9",
+    "basis": "molar"
+  }
+}
+```
+
+📄 Reference-backed species request:
+
+```json
+{
+  "request": {
+    "component": {
+      "name": "component name from prepared reference",
+      "formula": "Formula",
+      "state": "g"
+    },
+    "temperature": {
+      "value": 300.0,
+      "unit": "K"
+    },
+    "source": "reference",
     "reference_content": "REFERENCES:\n  ...",
     "component_key": "Name-Formula",
     "nasa_type": "nasa9",
@@ -220,7 +171,7 @@ tool input therefore looks like:
 }
 ```
 
-Typical reaction tool input looks like:
+🗄️ Database-backed reaction request:
 
 ```json
 {
@@ -228,39 +179,27 @@ Typical reaction tool input looks like:
     "name": "Water-Gas Shift Reaction",
     "reaction": "CO(g) + H2O(g) => CO2(g) + H2(g)",
     "components": [
-      {
-        "name": "carbon monoxide",
-        "formula": "CO",
-        "state": "g"
-      },
-      {
-        "name": "dihydrogen monoxide",
-        "formula": "H2O",
-        "state": "g"
-      },
-      {
-        "name": "carbon dioxide",
-        "formula": "CO2",
-        "state": "g"
-      },
-      {
-        "name": "dihydrogen",
-        "formula": "H2",
-        "state": "g"
-      }
+      {"name": "carbon monoxide", "formula": "CO", "state": "g"},
+      {"name": "dihydrogen monoxide", "formula": "H2O", "state": "g"},
+      {"name": "carbon dioxide", "formula": "CO2", "state": "g"},
+      {"name": "dihydrogen", "formula": "H2", "state": "g"}
     ],
     "temperature": {
-      "value": 300.0,
+      "value": 398.15,
       "unit": "K"
     },
-    "reference_content": "REFERENCES:\n  ...",
+    "source": "database",
     "component_key": "Name-Formula",
     "nasa_type": "nasa9"
   }
 }
 ```
 
-Tool responses follow a predictable JSON-safe contract:
+Use the same reaction request shape with `calc_Keq_vh_shortcut` when a van't
+Hoff shortcut estimate is requested. It returns a dimensionless equilibrium
+constant.
+
+Responses follow this contract:
 
 ```json
 {
@@ -271,25 +210,24 @@ Tool responses follow a predictable JSON-safe contract:
     "value": 0.0,
     "unit": "J/mol"
   },
-  "analysis": {},
+  "analysis": {
+    "source": "database"
+  },
   "warnings": []
 }
 ```
 
-Use the resource documents for full reference-content requirements before
-calling tools.
+## ✅ Best Practices
 
-## Best Practices ✅
-
-- Pass complete, non-empty `reference_content` in every calculation request.
-- Use `check_yaml_reference` before calculations when reference content is generated dynamically.
-- Keep `component_key` choices consistent across related calls.
-- Keep temperature inputs in Kelvin and within each component row's `Tmin` and `Tmax`.
+- Use `source: "database"` first for NASA-9 data in supported `g`, `l`, and `s` phases.
+- Use `source: "reference"` only with complete externally prepared `reference_content`.
+- Do not ask this MCP server to search external scientific data.
+- Keep temperature inputs in Kelvin.
 - Make sure every reaction species appears in both the reaction equation and `components`.
-- Use `nasa_type` consistently with the coefficient format in the supplied reference content.
-- Check `success`, `message`, and `warnings` before reporting calculated results.
+- Use `nasa_type: "nasa9"` with the database source.
+- Check `success`, `message`, and `warnings` before reporting results.
 
-## Development Quick Check 🧪
+## 🧪 Development Quick Check
 
 ```bash
 python -m py_compile pythermocalcdb_nasa_mcp/server.py
@@ -298,39 +236,14 @@ python -m py_compile pythermocalcdb_nasa_mcp/models/nasa.py
 python -m unittest discover tests
 ```
 
-## Examples 🚀
+## 🚀 Examples
 
-Example scripts and payload shapes are available under:
+Example payload shapes are available in `examples/request_payloads.py`.
 
-- `examples/request_payloads.py`
-- `examples/references`
-
-They show how to structure tool payloads and pass caller-supplied
-`reference_content`. Bundled fixtures or example data are not authoritative
-data sources for MCP operation.
-
-## Troubleshooting 🩺
-
-- `pythermocalcdb-nasa-mcp: command not found`
-  - Install the package in the active environment: `pip install -e .`
-  - Confirm the active Python environment is the one used by your MCP client.
-- Port already in use in HTTP mode
-  - Choose another port, for example `--port 8010`.
-- Empty or invalid reference errors
-  - Confirm that `reference_content` is complete YAML content and includes all component rows and NASA coefficients required by the selected calculation.
-- Component not found errors
-  - Confirm `component.name`, `component.formula`, `component.state`, and `component_key` match the supplied reference content.
-- Temperature range errors
-  - Confirm the requested Kelvin temperature is inside the matching reference row's `Tmin` and `Tmax` range.
-
-## FAQ ❓
-
-For questions, contact [Sina Gilassi on LinkedIn](https://www.linkedin.com/in/sina-gilassi/).
-
-## License 📄
+## 📄 License
 
 This project is licensed under the Apache License 2.0. See [LICENSE](LICENSE).
 
-## Author 👨‍💻
+## 👤 Author
 
 - [@sinagilassi](https://www.github.com/sinagilassi)
