@@ -20,7 +20,6 @@ from pythermocalcdb_nasa import (
 from pythermocalcdb_nasa_mcp.interface.validation import (
     validate_model_source_symbols,
     validate_reaction_components,
-    validate_reference_content,
     validate_temperature_ranges,
 )
 from pythermocalcdb_nasa_mcp.models.nasa import (
@@ -30,7 +29,8 @@ from pythermocalcdb_nasa_mcp.models.nasa import (
     SpeciesPropertyRequest,
 )
 from pythermocalcdb_nasa_mcp.tools.model_source_builder import (
-    build_model_source_from_reference,
+    ModelSourceBuildResult,
+    build_model_source_for_request,
 )
 
 
@@ -91,43 +91,46 @@ def _run_species_property(
     calculator: Callable[..., Any],
     request: SpeciesPropertyRequest,
 ) -> dict[str, Any]:
-    # NOTE: Level 1 reference validation before creating pyThermoDB objects.
-    reference_validation = validate_reference_content(request.reference_content)
-    if not reference_validation.success:
-        return _failure(reference_validation.message)
+    if request.source == "database" and request.nasa_type != "nasa9":
+        return _failure("source='database' currently supports only nasa_type='nasa9'.")
 
     # NOTE: Convert MCP inputs into deterministic domain objects.
     component = _to_domain_component(request.component)
-    model_source = build_model_source_from_reference(
+    source_result = build_model_source_for_request(
         components=[component],
+        temperature=request.temperature,
+        source=request.source,
         reference_content=request.reference_content,
     )
-    if model_source is None:
-        return _failure("Could not build ModelSource from reference_content for the requested component.")
+    if not source_result.success or source_result.model_source is None:
+        return _failure(source_result.message, source_result.warnings, source_result.analysis)
+
+    model_source = source_result.model_source
+    model_components = source_result.components or [component]
 
     # NOTE: Validate required NASA symbols after ModelSource construction.
     symbol_validation = validate_model_source_symbols(
         model_source,
-        [request.component],
+        model_components,
         nasa_type=request.nasa_type,
         basis=request.basis,
     )
     if not symbol_validation.success:
-        return _failure(symbol_validation.message, list(symbol_validation.warnings))
+        return _failure(symbol_validation.message, list(symbol_validation.warnings), source_result.analysis)
 
     # NOTE: v1 strictly rejects calculations outside Tmin/Tmax.
     range_validation = validate_temperature_ranges(
         model_source,
-        [request.component],
+        model_components,
         request.temperature.value,
     )
     if not range_validation.success:
-        return _failure(range_validation.message, list(range_validation.warnings))
+        return _failure(range_validation.message, list(range_validation.warnings), source_result.analysis)
 
     # ! Numerical work is delegated to pythermocalcdb-nasa.
     try:
         result = calculator(
-            component=component,
+            component=model_components[0],
             temperature=_to_domain_temperature(request.temperature.value),
             model_source=model_source,
             component_key=request.component_key,
@@ -137,20 +140,23 @@ def _run_species_property(
         )
     except Exception as exc:
         logger.exception("%s failed.", operation)
-        return _failure(f"{operation} failed: {exc}", list(range_validation.warnings))
+        return _failure(f"{operation} failed: {exc}", list(range_validation.warnings), source_result.analysis)
 
     # NOTE: Convert package output to a JSON-safe response.
     return _result_response(
         operation,
         result,
         warnings=list(range_validation.warnings),
-        analysis={
-            "component": request.component.model_dump(),
-            "temperature": request.temperature.model_dump(),
-            "basis": request.basis,
-            "nasa_type": request.nasa_type,
-            "component_key": request.component_key,
-        },
+        analysis=_analysis_with_source(
+            source_result,
+            {
+                "component": request.component.model_dump(),
+                "temperature": request.temperature.model_dump(),
+                "basis": request.basis,
+                "nasa_type": request.nasa_type,
+                "component_key": request.component_key,
+            },
+        ),
     )
 
 
@@ -160,10 +166,8 @@ def _run_reaction_property(
     calculator: Callable[..., Any],
     request: ReactionPropertyRequest,
 ) -> dict[str, Any]:
-    # NOTE: Level 1 reference validation before creating pyThermoDB objects.
-    reference_validation = validate_reference_content(request.reference_content)
-    if not reference_validation.success:
-        return _failure(reference_validation.message)
+    if request.source == "database" and request.nasa_type != "nasa9":
+        return _failure("source='database' currently supports only nasa_type='nasa9'.")
 
     # NOTE: Ensure Reaction.components covers every species token in the equation.
     component_validation = validate_reaction_components(request.reaction, request.components)
@@ -172,36 +176,41 @@ def _run_reaction_property(
 
     # NOTE: Convert MCP component inputs and build one shared ModelSource.
     components = [_to_domain_component(component) for component in request.components]
-    model_source = build_model_source_from_reference(
+    source_result = build_model_source_for_request(
         components=components,
+        temperature=request.temperature,
+        source=request.source,
         reference_content=request.reference_content,
     )
-    if model_source is None:
-        return _failure("Could not build ModelSource from reference_content for the requested reaction components.")
+    if not source_result.success or source_result.model_source is None:
+        return _failure(source_result.message, source_result.warnings, source_result.analysis)
+
+    model_source = source_result.model_source
+    model_components = source_result.components or components
 
     # NOTE: Every reaction species needs the NASA coefficient pack.
     symbol_validation = validate_model_source_symbols(
         model_source,
-        request.components,
+        model_components,
         nasa_type=request.nasa_type,
     )
     if not symbol_validation.success:
-        return _failure(symbol_validation.message, list(symbol_validation.warnings))
+        return _failure(symbol_validation.message, list(symbol_validation.warnings), source_result.analysis)
 
     # NOTE: Strictly enforce the available polynomial temperature range for every species.
     range_validation = validate_temperature_ranges(
         model_source,
-        request.components,
+        model_components,
         request.temperature.value,
     )
     if not range_validation.success:
-        return _failure(range_validation.message, list(range_validation.warnings))
+        return _failure(range_validation.message, list(range_validation.warnings), source_result.analysis)
 
     # NOTE: Construct the pyreactlab Reaction object after MCP-level validation passes.
     reaction = Reaction(
         name=request.name,
         reaction=request.reaction,
-        components=components,
+        components=model_components,
     )
     # ! Numerical work is delegated to pythermocalcdb-nasa.
     try:
@@ -215,20 +224,23 @@ def _run_reaction_property(
         )
     except Exception as exc:
         logger.exception("%s failed.", operation)
-        return _failure(f"{operation} failed: {exc}", list(range_validation.warnings))
+        return _failure(f"{operation} failed: {exc}", list(range_validation.warnings), source_result.analysis)
 
     # NOTE: Convert package output to a JSON-safe response.
     return _result_response(
         operation,
         result,
         warnings=list(range_validation.warnings),
-        analysis={
-            "reaction": {"name": request.name, "equation": request.reaction},
-            "components": [component.model_dump() for component in request.components],
-            "temperature": request.temperature.model_dump(),
-            "nasa_type": request.nasa_type,
-            "component_key": request.component_key,
-        },
+        analysis=_analysis_with_source(
+            source_result,
+            {
+                "reaction": {"name": request.name, "equation": request.reaction},
+                "components": [component.model_dump() for component in request.components],
+                "temperature": request.temperature.model_dump(),
+                "nasa_type": request.nasa_type,
+                "component_key": request.component_key,
+            },
+        ),
     )
 
 
@@ -245,6 +257,17 @@ def _to_domain_temperature(value: float) -> Temperature:
 # SECTION: Build optional calculation kwargs
 def _optional_mode(mode: str | None) -> dict[str, str]:
     return {"mode": mode} if mode is not None else {}
+
+
+# SECTION: Merge source diagnostics into response analysis
+def _analysis_with_source(
+    source_result: ModelSourceBuildResult,
+    analysis: dict[str, Any],
+) -> dict[str, Any]:
+    merged = dict(source_result.analysis)
+    merged.update(analysis)
+    merged["source"] = source_result.source
+    return merged
 
 
 # SECTION: Build success response
