@@ -9,6 +9,7 @@ from pythermocalcdb_nasa_mcp.interface.core import (
     calc_G_T,
     calc_H_T,
     calc_Keq,
+    calc_Keq_vh_shortcut,
     calc_S_T,
     calc_dG_rxn_STD,
     calc_dH_rxn_STD,
@@ -53,7 +54,6 @@ class NASAInterfaceTests(unittest.TestCase):
                     SpeciesPropertyRequest(
                         component=component,
                         temperature=TemperatureInput(value=temperature, unit="K"),
-                        reference_content=REFERENCE_CONTENT,
                     )
                 )
 
@@ -67,6 +67,7 @@ class NASAInterfaceTests(unittest.TestCase):
             (calc_dS_rxn_STD, 398.15, -40.56815645513373, "J/mol.K"),
             (calc_dG_rxn_STD, 398.15, -24488.38696292042, "J/mol"),
             (calc_Keq, 1000.0, 1.4245384317027154, "dimensionless"),
+            (calc_Keq_vh_shortcut, 1000.0, 0.8993756873966166, "dimensionless"),
         ]
         for tool, temperature, expected_value, expected_unit in cases:
             with self.subTest(tool=tool.__name__):
@@ -76,7 +77,6 @@ class NASAInterfaceTests(unittest.TestCase):
                         reaction=WGS_REACTION,
                         components=WGS_COMPONENTS,
                         temperature=TemperatureInput(value=temperature, unit="K"),
-                        reference_content=REFERENCE_CONTENT,
                     )
                 )
 
@@ -84,11 +84,62 @@ class NASAInterfaceTests(unittest.TestCase):
                 self.assertEqual(response["results"]["unit"], expected_unit)
                 self.assertAlmostEqual(response["results"]["value"], expected_value)
 
+    def test_reference_species_property_still_supported(self):
+        response = calc_H_T(
+            SpeciesPropertyRequest(
+                component=CO2,
+                temperature=TemperatureInput(value=300.0, unit="K"),
+                source="reference",
+                reference_content=REFERENCE_CONTENT,
+            )
+        )
+
+        self.assertTrue(response["success"])
+        self.assertEqual(response["analysis"]["source"], "reference")
+        self.assertEqual(response["results"]["unit"], "J/mol")
+        self.assertAlmostEqual(response["results"]["value"], -393438.9409053566)
+
+    def test_reference_reaction_property_still_supported(self):
+        cases = [
+            (calc_Keq, 1.4245384317027154),
+            (calc_Keq_vh_shortcut, 0.8993756873966166),
+        ]
+        for tool, expected_value in cases:
+            with self.subTest(tool=tool.__name__):
+                response = tool(
+                    ReactionPropertyRequest(
+                        name="Water-Gas Shift Reaction",
+                        reaction=WGS_REACTION,
+                        components=WGS_COMPONENTS,
+                        temperature=TemperatureInput(value=1000.0, unit="K"),
+                        source="reference",
+                        reference_content=REFERENCE_CONTENT,
+                    )
+                )
+
+                self.assertTrue(response["success"])
+                self.assertEqual(response["analysis"]["source"], "reference")
+                self.assertEqual(response["results"]["unit"], "dimensionless")
+                self.assertAlmostEqual(response["results"]["value"], expected_value)
+
+    def test_reference_source_without_reference_content_returns_structured_failure(self):
+        response = calc_H_T(
+            SpeciesPropertyRequest(
+                component=CO2,
+                temperature=TemperatureInput(value=300.0, unit="K"),
+                source="reference",
+            )
+        )
+
+        self.assertFalse(response["success"])
+        self.assertIn("reference_content must not be blank", response["message"])
+
     def test_invalid_yaml_returns_structured_failure(self):
         response = calc_H_T(
             SpeciesPropertyRequest(
                 component=CO2,
                 temperature=TemperatureInput(value=300.0, unit="K"),
+                source="reference",
                 reference_content="REFERENCES: [",
             )
         )
@@ -99,20 +150,22 @@ class NASAInterfaceTests(unittest.TestCase):
     def test_missing_component_returns_structured_failure(self):
         response = calc_H_T(
             SpeciesPropertyRequest(
-                component=ComponentInput(name="argon", formula="Ar", state="g"),
+                component=ComponentInput(name="not-a-real-component", formula="Xx999", state="g"),
                 temperature=TemperatureInput(value=300.0, unit="K"),
-                reference_content=REFERENCE_CONTENT,
             )
         )
 
         self.assertFalse(response["success"])
-        self.assertIn("Could not build ModelSource", response["message"])
+        self.assertIn("missing from the embedded NASA-9 database", response["message"])
+        self.assertIn("source='reference'", response["message"])
+        self.assertIn("not-a-real-component/Xx999(g)", response["warnings"][0])
 
     def test_out_of_range_temperature_returns_structured_failure(self):
         response = calc_H_T(
             SpeciesPropertyRequest(
                 component=CO2,
                 temperature=TemperatureInput(value=1500.0, unit="K"),
+                source="reference",
                 reference_content=REFERENCE_CONTENT,
             )
         )
