@@ -136,36 +136,36 @@ def create_mcp_server() -> "FastMCP":
     # ! Species property tools
     mcp.tool(
         calc_H_T,
-        description="Calculate component enthalpy H_T from supplied pyThermoDB NASA reference_content.",
+        description="Calculate component enthalpy H_T using the embedded NASA-9 database by default, or caller-supplied reference_content when source='reference'.",
     )
     mcp.tool(
         calc_S_T,
-        description="Calculate component entropy S_T from supplied pyThermoDB NASA reference_content.",
+        description="Calculate component entropy S_T using the embedded NASA-9 database by default, or caller-supplied reference_content when source='reference'.",
     )
     mcp.tool(
         calc_G_T,
-        description="Calculate component Gibbs free energy G_T from supplied pyThermoDB NASA reference_content.",
+        description="Calculate component Gibbs free energy G_T using the embedded NASA-9 database by default, or caller-supplied reference_content when source='reference'.",
     )
     mcp.tool(
         calc_Cp_T,
-        description="Calculate component heat capacity Cp_T from supplied pyThermoDB NASA reference_content.",
+        description="Calculate component heat capacity Cp_T using the embedded NASA-9 database by default, or caller-supplied reference_content when source='reference'.",
     )
     # ! Reaction property tools
     mcp.tool(
         calc_dH_rxn_STD,
-        description="Calculate standard enthalpy change of reaction from supplied pyThermoDB NASA reference_content.",
+        description="Calculate standard enthalpy change of reaction using the embedded NASA-9 database by default, or caller-supplied reference_content when source='reference'.",
     )
     mcp.tool(
         calc_dS_rxn_STD,
-        description="Calculate standard entropy change of reaction from supplied pyThermoDB NASA reference_content.",
+        description="Calculate standard entropy change of reaction using the embedded NASA-9 database by default, or caller-supplied reference_content when source='reference'.",
     )
     mcp.tool(
         calc_dG_rxn_STD,
-        description="Calculate standard Gibbs free energy change of reaction from supplied pyThermoDB NASA reference_content.",
+        description="Calculate standard Gibbs free energy change of reaction using the embedded NASA-9 database by default, or caller-supplied reference_content when source='reference'.",
     )
     mcp.tool(
         calc_Keq,
-        description="Calculate reaction equilibrium constant Keq from supplied pyThermoDB NASA reference_content.",
+        description="Calculate reaction equilibrium constant Keq using the embedded NASA-9 database by default, or caller-supplied reference_content when source='reference'.",
     )
     # ! Supporting diagnostic tool
     mcp.tool(
