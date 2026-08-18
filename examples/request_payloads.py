@@ -115,3 +115,8 @@ REACTION_PROPERTY_REFERENCE_REQUEST = {
         "nasa_type": "nasa9",
     }
 }
+
+
+# SECTION: Van't Hoff shortcut equilibrium request payload
+# NOTE: Use this same request body with the calc_Keq_vh_shortcut tool.
+KEQ_VH_SHORTCUT_DATABASE_REQUEST = REACTION_PROPERTY_DATABASE_REQUEST
