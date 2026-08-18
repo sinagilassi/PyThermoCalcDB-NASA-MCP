@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pythermocalcdb-nasa-mcp"
+version = "0.1.0"
+description = ""
+authors = [
+    { name = "Sina Gilassi", email = "sina.gilassi@gmail.com" }
+]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+readme = "README.md"
+requires-python = ">=3.11"
+classifiers = [
+    "Programming Language :: Python :: 3.11",
+    "Operating System :: OS Independent",
+]
+
+dependencies = [
+    "fastmcp",
+    "pythermocalcdb-nasa",
+]
+
+[project.scripts]
+pythermocalcdb-nasa-mcp = "pythermocalcdb_nasa_mcp.server:main"
+
+[project.urls]
+"Homepage" = "https://github.com/sinagilassi/PyThermoCalcDB-NASA-MCP"
+"Tracker" = "https://github.com/sinagilassi/PyThermoCalcDB-NASA-MCP/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["pythermocalcdb_nasa_mcp*"]
+exclude = ["tests*", "examples*", "docs*"]
+
+[tool.setuptools.package-data]
+"pythermocalcdb_nasa_mcp" = ["data/**/*"]
