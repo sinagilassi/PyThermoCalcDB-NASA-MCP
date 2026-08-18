@@ -1,58 +1,53 @@
-# import packages/modules
+# SECTION: Imports
 import logging
 from typing import Optional, List
 from pyThermoLinkDB import (
     build_components_model_source,
-    build_mixture_model_source,
     build_model_source
 )
 from pyThermoLinkDB.models import (
     ComponentModelSource,
-    MixtureModelSource,
     ModelSource
 )
 from pythermodb_settings.models import Component
 from pyThermoDB import (
     ComponentThermoDB,
-    MixtureThermoDB,
     build_component_thermodb_from_reference,
-    build_mixture_thermodb_from_reference
 )
 
 # NOTE: logger
 logger = logging.getLogger(__name__)
 
-# SECTION: BUILD COMPONENTS THERMODB
+# SECTION: Build component ThermoDB objects
 
 
 def _build_components_thermodb_from_reference(
         components: List[Component],
         reference_content: str,
-        ignore_state_props: Optional[List[str]] = None
 ) -> Optional[List[ComponentThermoDB]]:
     try:
-        # init list
+        # NOTE: Collect one pyThermoDB component object per requested MCP component.
         thermodb_components: List[ComponentThermoDB] = []
 
-        # iterate over components and build thermodb component from reference
+        # NOTE: Build each component using the caller-supplied reference content.
         for comp in components:
             thermodb_component = build_component_thermodb_from_reference(
                 component_name=comp.name,
                 component_formula=comp.formula,
                 component_state=comp.state,
                 reference_content=reference_content,
-                ignore_state_props=ignore_state_props,
+                check_labels=False,
             )
-            # >> check if component was built successfully
+            # ! A missing component row makes the ModelSource unusable for this request.
             if thermodb_component is None:
                 logger.error(
                     f"Component {comp.name} could not be built from reference.")
                 return None
 
-            # add to list
+            # NOTE: Preserve component order for downstream reaction construction.
             thermodb_components.append(thermodb_component)
 
-        # res
+        # NOTE: Return raw ThermoDB components; ModelSource conversion happens one layer up.
         return thermodb_components
     except Exception as e:
         logger.error(
@@ -60,104 +55,55 @@ def _build_components_thermodb_from_reference(
         return None
 
 
-# SECTION: BUILD MIXTURE THERMODB
-def _build_mixture_thermodb_from_reference(
-        mixture: List[Component],
-        reference_content: str,
-) -> Optional[MixtureThermoDB]:
-    try:
-        # NOTE: build mixture thermodb
-        mixture_thermodb: MixtureThermoDB | None = build_mixture_thermodb_from_reference(
-            components=mixture,
-            reference_content=reference_content,
-        )
-        return mixture_thermodb
-    except Exception as e:
-        logger.error(f"Error in _build_mixture_thermodb_from_reference: {e}")
-        return None
-
-
-# SECTION: BUILD MODEL SOURCE
+# SECTION: Build ModelSource from reference content
 
 
 def build_model_source_from_reference(
         components: List[Component],
         reference_content: str,
-        mixture: Optional[List[Component]] = None,
-        ignore_state_props: Optional[List[str]] = None,
 ) -> Optional[ModelSource]:
 
     try:
-        # NOTE: EOS callers only need component model sources, so mixture is optional.
-        if mixture is None:
-            # ! Normalize missing mixture input before checking the activity-capable path.
-            mixture = []
-
-        # NOTE: build components thermodb
+        # NOTE: NASA calculations require component-level data sources only.
         if components:
             thermodb_components: List[ComponentThermoDB] | None = _build_components_thermodb_from_reference(
                 components=components,
                 reference_content=reference_content,
-                ignore_state_props=ignore_state_props,
             )
 
-            # >> check
+            # ! Stop early if pyThermoDB could not build the requested component set.
             if thermodb_components is None:
                 logger.error(
                     "Failed to build components thermodb from reference.")
                 return None
 
-            # ! Every requested component source must be available for activity models.
+            # ! Every requested component source must be available for NASA calculations.
             if len(thermodb_components) != len(components):
                 logger.error(
                     "Failed to build thermodb source for every requested component.")
                 return None
 
-            # ! build component model source
-            # ! with partially matched rules
+            # NOTE: Convert pyThermoDB component records into PyThermoLinkDB component sources.
             component_model_source: List[ComponentModelSource] = build_components_model_source(
                 components_thermodb=thermodb_components,
                 rules=None,
             )
         else:
-            # >> if no components, return empty list
+            # NOTE: Empty component lists produce an empty ModelSource.
             component_model_source: List[ComponentModelSource] = []
 
-        # NOTE: build mixture thermodb
-        mixture_model_source: Optional[MixtureModelSource] = None
-
-        if mixture:
-            mixture_thermodb: MixtureThermoDB | None = _build_mixture_thermodb_from_reference(
-                mixture=mixture,
-                reference_content=reference_content,
-            )
-
-            # >> check
-            if mixture_thermodb is None:
-                logger.error(
-                    "Failed to build mixture thermodb from reference.")
-                return None
-
-            # ! build mixture model source
-            # ! with partially matched rules
-            mixture_model_source = build_mixture_model_source(
-                mixture_thermodb=mixture_thermodb,
-            )
-
-        # NOTE: model source
+        # NOTE: Assemble the source list consumed by build_model_source.
         source: list = []
-        # >>> component model source
+        # ! Component model sources are the only source type supported by this NASA MCP wrapper.
         if len(component_model_source) > 0:
             source.extend(component_model_source)
-        # >>> mixture model source
-        if mixture_model_source is not None:
-            source.append(mixture_model_source)
 
+        # NOTE: Build the final ModelSource passed to pythermocalcdb-nasa.
         model_source: ModelSource = build_model_source(
             source=source,
         )
 
-        # return
+        # NOTE: Return a package-native ModelSource, not a serialized copy.
         return model_source
     except Exception as e:
         logger.error(f"Error in build_model_source_from_reference: {e}")
