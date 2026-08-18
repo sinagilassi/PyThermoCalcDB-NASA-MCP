@@ -88,6 +88,28 @@ uv run pythermocalcdb-nasa-mcp --mode stdio
 }
 ```
 
+## 🕵️ MCP Inspector
+
+You can test the server with the official MCP Inspector.
+
+For direct STDIO testing from a local checkout:
+
+```bash
+npx @modelcontextprotocol/inspector uv run pythermocalcdb-nasa-mcp --mode stdio
+```
+
+For HTTP testing, start the server first:
+
+```bash
+uv run pythermocalcdb-nasa-mcp --mode http --host 127.0.0.1 --port 8000 --path /mcp
+```
+
+Then connect Inspector to:
+
+```text
+http://127.0.0.1:8000/mcp
+```
+
 ## 📚 MCP Resources
 
 - `pythermocalcdb-nasa://references/nasa-requirements`
