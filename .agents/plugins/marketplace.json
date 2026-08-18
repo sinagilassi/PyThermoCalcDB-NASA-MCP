@@ -1,0 +1,20 @@
+{
+  "name": "pythermo-local",
+  "interface": {
+    "displayName": "PyThermo Local"
+  },
+  "plugins": [
+    {
+      "name": "pythermocalcdb-nasa",
+      "source": {
+        "source": "local",
+        "path": "./plugins/chatgpt"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Science"
+    }
+  ]
+}
