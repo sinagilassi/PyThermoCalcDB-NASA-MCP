@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "pythermocalcdb-nasa": {
+      "command": "uvx",
+      "args": [
+        "pythermocalcdb-nasa-mcp",
+        "--mode",
+        "stdio"
+      ]
+    }
+  }
+}

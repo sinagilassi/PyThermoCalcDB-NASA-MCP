@@ -1,0 +1,58 @@
+{
+  "name": "pythermocalcdb-nasa",
+  "version": "0.1.0",
+  "description": "Agent-ready NASA-7 and NASA-9 thermochemistry for species, reactions, and equilibrium calculations using PyThermoCalcDB-NASA and its MCP interface.",
+  "author": {
+    "name": "Sina Gilassi",
+    "email": "sina.gilassi@gmail.com",
+    "url": "https://github.com/sinagilassi/PyThermoCalcDB-NASA-MCP"
+  },
+  "homepage": "https://github.com/sinagilassi/PyThermoCalcDB-NASA-MCP",
+  "repository": "https://github.com/sinagilassi/PyThermoCalcDB-NASA-MCP",
+  "license": "Apache-2.0",
+  "keywords": [
+    "thermodynamics",
+    "thermochemistry",
+    "chemical-engineering",
+    "chemistry",
+    "nasa-7",
+    "nasa-9",
+    "equilibrium",
+    "gibbs-free-energy",
+    "reaction-enthalpy",
+    "reaction-entropy",
+    "model-source",
+    "pythermodb",
+    "mcp",
+    "ai-agents"
+  ],
+  "skills": "./skills/",
+  "mcpServers": "./.mcp.json",
+  "interface": {
+    "displayName": "PyThermoCalcDB NASA",
+    "shortDescription": "NASA thermochemistry tools for species, reactions, and equilibrium.",
+    "longDescription": "PyThermoCalcDB NASA connects AI agents to deterministic thermochemical calculations provided by PyThermoCalcDB-NASA through the PyThermoCalcDB-NASA-MCP interface. It supports NASA-7 and NASA-9 workflows, including species heat capacity, enthalpy, entropy, and Gibbs free energy; reaction enthalpy, entropy, and Gibbs free energy; and equilibrium constants. The plugin follows a database-first workflow using the embedded NASA-9 SQLite database, can build ModelSource objects from trusted thermochemical data, and supports externally prepared pyThermoDB reference content when custom or NASA-7 data are required. The MCP layer handles structured validation, ModelSource construction, deterministic function execution, and JSON-safe results, enabling reliable LLM-augmented thermodynamic calculations for chemical engineering, chemistry, and physics-based process modeling.",
+    "developerName": "Sina Gilassi",
+    "category": "Science",
+    "capabilities": [
+      "Skills",
+      "MCP",
+      "NASA-7",
+      "NASA-9",
+      "Thermochemistry",
+      "Species Properties",
+      "Reaction Properties",
+      "Chemical Equilibrium",
+      "ModelSource",
+      "pyThermoDB"
+    ],
+    "defaultPrompt": [
+      "Use the PyThermoCalcDB-NASA MCP tools for deterministic NASA thermochemistry calculations.",
+      "Prefer the embedded NASA-9 database when the requested species are available.",
+      "Use reference-backed workflows when complete pyThermoDB reference content is provided or NASA-7/custom data are required.",
+      "Calculate species Cp, H, S, or G properties with the appropriate MCP species tool.",
+      "Calculate reaction thermodynamic properties or equilibrium constants with the appropriate MCP reaction tool.",
+      "Validate source availability, temperature range, units, and MCP warnings before reporting scientific results."
+    ]
+  }
+}

@@ -1,0 +1,25 @@
+table-name:
+  TABLE-ID: 1
+  DESCRIPTION:
+    Equation table description.
+  EQUATIONS:
+    EQ-1:
+      BODY:
+        - tau = 1 - args['temperature | T | K'] / parms['critical-temperature | Tc | K']
+        - res['property-name | Prop | unit'] = (
+            parms['A | A | 1'] +
+            parms['B | B | 1'] * math.pow(tau, 1.5)
+          )
+      BODY-INTEGRAL:
+        None
+      BODY-FIRST-DERIVATIVE:
+        None
+      BODY-SECOND-DERIVATIVE:
+        None
+  STRUCTURE:
+    COLUMNS: [No.,Name,Formula,State,A,B,critical-temperature,Tmin,Tmax,Eq]
+    SYMBOL: [None,None,None,None,A,B,Tc,Tmin,Tmax,Prop]
+    UNIT: [None,None,None,None,1,1,K,K,K,unit]
+  VALUES:
+    # The final Eq value is a numeric selector: 1 -> EQ-1, 2 -> EQ-2, etc.
+    - [1,'component','Formula','g',1,1,500,250,450,1]
