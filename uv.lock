@@ -1209,7 +1209,7 @@ wheels = [
 
 [[package]]
 name = "pythermocalcdb-nasa"
-version = "0.2.0"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pycuc" },
@@ -1219,9 +1219,9 @@ dependencies = [
     { name = "pythermodb-settings" },
     { name = "pythermolinkdb" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b6/37/91a9f69171d23af734ab73f412cbccf12b1110fedb284c81b4b293360e05/pythermocalcdb_nasa-0.2.0.tar.gz", hash = "sha256:ebe231cc34a198be3116dd5e2c54c416558afe68ac78ae76b0cfb21399c8ee7d", size = 22882, upload-time = "2026-08-18T00:09:32.246Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/48/eb/ea503233529b478b56f529fc5030133c155af2c5cfebfdf6978e6da569c1/pythermocalcdb_nasa-0.3.0.tar.gz", hash = "sha256:974be9eec2f03c39d3096fee72991551e8e142e0a0b42ae1c703682677ccf189", size = 354260, upload-time = "2026-08-18T18:11:27.124Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/fa/0c/b449fab625fcc7bb8e63f49a970d300a965566713c59b14cf0c5556dc05f/pythermocalcdb_nasa-0.2.0-py3-none-any.whl", hash = "sha256:09a850f5879470e25fbc92bdfb499d8437c09ceef62ddc261adf2f22997b2476", size = 23824, upload-time = "2026-08-18T00:09:31.22Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/29/c80630049200b80b5c8d5cbe48dc8735c2cf6f8e4e9a2d01452073c55b51/pythermocalcdb_nasa-0.3.0-py3-none-any.whl", hash = "sha256:ebd383256adf16aefbf6ebc944b5806d072abae4a8f4020dfba440ef6dd67283", size = 355058, upload-time = "2026-08-18T18:11:25.789Z" },
 ]
 
 [[package]]
