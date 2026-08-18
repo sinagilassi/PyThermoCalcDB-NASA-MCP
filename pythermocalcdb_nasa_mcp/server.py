@@ -1,4 +1,3 @@
-# import libs
 import argparse
 import tomllib
 from importlib.metadata import PackageNotFoundError, version
@@ -6,17 +5,19 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 if TYPE_CHECKING:
-    # fastmcp
+    # NOTE: FastMCP import is type-checking only to keep runtime imports local.
     from fastmcp import FastMCP
-    # pythermocalcdb_nasa_mcp
+    # NOTE: HTTP config is only needed when type checkers inspect run_mcp.
     from pythermocalcdb_nasa_mcp.models.refs import MCPHTTPConfig
 
 
+# SECTION: Transport mode type
 RunMode = Literal["stdio", "http"]
 
 
 # SECTION: Package version
 def get_package_version() -> str:
+    # NOTE: Prefer local pyproject metadata when running directly from source.
     pyproject_path = Path(__file__).resolve().parents[1] / "pyproject.toml"
     if pyproject_path.exists():
         with pyproject_path.open("rb") as pyproject_file:
@@ -26,7 +27,8 @@ def get_package_version() -> str:
             return pyproject_version
 
     try:
-        return version("pythermomodels-mcp")
+        # NOTE: Fall back to installed distribution metadata.
+        return version("pythermocalcdb-nasa-mcp")
     except PackageNotFoundError:
         # Useful when running directly from source without installing the package.
         return "development"
@@ -36,152 +38,136 @@ def get_package_version() -> str:
 
 
 def create_mcp_server() -> "FastMCP":
+    # NOTE: Keep imports local so importing server.py stays lightweight.
     from fastmcp import FastMCP
 
     from pythermocalcdb_nasa_mcp.interface.core import (
-        calculate_gas_fugacity,
-        calculate_liquid_fugacity,
-        calculate_mixture_fugacity,
-        check_mixture_eos_roots,
-        check_pure_component_eos_roots,
+        calc_Cp_T,
+        calc_G_T,
+        calc_H_T,
+        calc_Keq,
+        calc_S_T,
+        calc_dG_rxn_STD,
+        calc_dH_rxn_STD,
+        calc_dS_rxn_STD,
     )
-
     from pythermocalcdb_nasa_mcp.resources import (
-        AGENT_WORKFLOW_REQUIREMENTS,
+        AGENT_CHECKLIST,
+        NASA_REFERENCE_REQUIREMENTS,
+        REACTION_PROPERTY_WORKFLOW,
+        SPECIES_PROPERTY_WORKFLOW,
     )
     from pythermocalcdb_nasa_mcp.tools.check_reference import check_yaml_reference
 
-    mcp = FastMCP("PyThermoModels-MCP")
+    mcp = FastMCP("PyThermoCalcDB-NASA-MCP")
 
-    # NOTE: RESOURCES
-    # ! agent workflow resource
+    # SECTION: MCP resources
+    # ! NASA reference requirements
     @mcp.resource(
-        uri="pythermomodels://guidance/agent-workflow",
-        name="PyThermoModels Agent Workflow",
+        uri="pythermocalcdb-nasa://references/nasa-requirements",
+        name="NASA Reference Requirements",
         description=(
-            "Resource-first routing, validation, argument-integrity, diagnostic, "
-            "error-handling, and result-reporting instructions for agents using "
-            "PyThermoModels-MCP tools."
+            "Required pyThermoDB YAML structure, component rows, NASA coefficients, "
+            "and temperature range rules for PyThermoCalcDB-NASA-MCP."
         ),
+        mime_type="application/yaml",
+        tags={
+            "references",
+            "requirements",
+            "nasa",
+            "thermodynamics",
+        },
+    )
+    def get_nasa_reference_requirements() -> str:
+        return NASA_REFERENCE_REQUIREMENTS
+
+    # ! Species property workflow
+    @mcp.resource(
+        uri="pythermocalcdb-nasa://workflows/species-properties",
+        name="Species Property Workflow",
+        description="Agent workflow for H_T, S_T, G_T, and Cp_T species property calculations.",
+        mime_type="application/yaml",
+        tags={
+            "workflow",
+            "species",
+            "nasa",
+            "enthalpy",
+            "entropy",
+            "gibbs",
+            "heat-capacity",
+        },
+    )
+    def get_species_property_workflow() -> str:
+        return SPECIES_PROPERTY_WORKFLOW
+
+    # ! Reaction property workflow
+    @mcp.resource(
+        uri="pythermocalcdb-nasa://workflows/reaction-properties",
+        name="Reaction Property Workflow",
+        description="Agent workflow for dH_rxn_STD, dS_rxn_STD, dG_rxn_STD, and Keq reaction calculations.",
+        mime_type="application/yaml",
+        tags={
+            "workflow",
+            "reaction",
+            "nasa",
+            "equilibrium",
+        },
+    )
+    def get_reaction_property_workflow() -> str:
+        return REACTION_PROPERTY_WORKFLOW
+
+    # ! Agent checklist
+    @mcp.resource(
+        uri="pythermocalcdb-nasa://guidance/agent-checklist",
+        name="Agent Checklist",
+        description="Resource-first checklist for reliable NASA calculation tool calls.",
         mime_type="application/yaml",
         tags={
             "guidance",
             "agent",
-            "workflow",
-            "tool-routing",
             "validation",
-            "thermodynamics",
+            "nasa",
         },
     )
-    def get_agent_workflow_requirements() -> str:
-        return AGENT_WORKFLOW_REQUIREMENTS
+    def get_agent_checklist() -> str:
+        return AGENT_CHECKLIST
 
-    # ! eos reference
-    @mcp.resource(
-        uri="pythermomodels://references/eos-requirements",
-        name="EOS Reference Requirements",
-        description=(""),
-        mime_type="application/yaml",
-        tags={
-            "references",
-            "requirements",
-            "eos",
-            "equation-of-state",
-            "fugacity",
-            "root-analysis",
-            "peng-robinson",
-            "soave-redlich-kwong",
-            "redlich-kwong",
-            "van-der-waals",
-        },
-    )
-    def get_eos_reference_requirements() -> str:
-        return EOS_REFERENCE_REQUIREMENTS
-
-    # ! activity reference
-    @mcp.resource(
-        uri="pythermomodels://references/activity-requirements",
-        name="Activity Reference Requirements",
-        description=(""),
-        mime_type="application/yaml",
-        tags={
-            "references",
-            "requirements",
-            "activity-models",
-            "liquid-phase",
-            "activity-coefficients",
-            "NRTL",
-            "UNIQUAC",
-        },
-    )
-    def get_activity_reference_requirements() -> str:
-        return ACTIVITY_REFERENCE_REQUIREMENTS
-
-    # NOTE: TOOLS
-    # ! pure component eos roots tool
+    # SECTION: MCP tools
+    # ! Species property tools
     mcp.tool(
-        check_pure_component_eos_roots,
-        description=(
-            "Check pure-component EOS roots using pyThermoDB YAML reference_content supplied in args to build the ModelSource."
-        ),
+        calc_H_T,
+        description="Calculate component enthalpy H_T from supplied pyThermoDB NASA reference_content.",
     )
-    # ! gas fugacity calculation tool
     mcp.tool(
-        calculate_gas_fugacity,
-        description=(
-            "Calculate pure-component gas fugacity using pyThermoDB YAML reference_content supplied in args to build the ModelSource."
-        ),
+        calc_S_T,
+        description="Calculate component entropy S_T from supplied pyThermoDB NASA reference_content.",
     )
-    # ! liquid fugacity calculation tool
     mcp.tool(
-        calculate_liquid_fugacity,
-        description=(
-            "Calculate pure-component liquid fugacity using pyThermoDB YAML reference_content supplied in args to build the ModelSource."
-        ),
+        calc_G_T,
+        description="Calculate component Gibbs free energy G_T from supplied pyThermoDB NASA reference_content.",
     )
-    # ! mixture eos roots tool
     mcp.tool(
-        check_mixture_eos_roots,
-        description=(
-            "Check mixture EOS roots using pyThermoDB YAML reference_content supplied in args to build the ModelSource."
-        ),
+        calc_Cp_T,
+        description="Calculate component heat capacity Cp_T from supplied pyThermoDB NASA reference_content.",
     )
-    # ! mixture fugacity calculation tool
+    # ! Reaction property tools
     mcp.tool(
-        calculate_mixture_fugacity,
-        description=(
-            "Calculate mixture fugacity using pyThermoDB YAML reference_content supplied in args to build the ModelSource."
-        ),
+        calc_dH_rxn_STD,
+        description="Calculate standard enthalpy change of reaction from supplied pyThermoDB NASA reference_content.",
     )
-    # ! NRTL activity coefficient tool
     mcp.tool(
-        calculate_nrtl_activity_coefficient,
-        description=(
-            "Calculate NRTL activity coefficients using pyThermoDB YAML reference_content supplied in args to build the ModelSource."
-        ),
+        calc_dS_rxn_STD,
+        description="Calculate standard entropy change of reaction from supplied pyThermoDB NASA reference_content.",
     )
-    # ! UNIQUAC activity coefficient tool
     mcp.tool(
-        calculate_uniquac_activity_coefficient,
-        description=(
-            "Calculate UNIQUAC activity coefficients using pyThermoDB YAML reference_content supplied in args to build the ModelSource."
-        ),
+        calc_dG_rxn_STD,
+        description="Calculate standard Gibbs free energy change of reaction from supplied pyThermoDB NASA reference_content.",
     )
-    # ! NRTL tau_ij tool
     mcp.tool(
-        calculate_nrtl_tau_ij,
-        description=(
-            "Calculate NRTL tau_ij using pyThermoDB YAML reference_content supplied in args to build the ModelSource."
-        ),
+        calc_Keq,
+        description="Calculate reaction equilibrium constant Keq from supplied pyThermoDB NASA reference_content.",
     )
-    # ! UNIQUAC tau_ij tool
-    mcp.tool(
-        calculate_uniquac_tau_ij,
-        description=(
-            "Calculate UNIQUAC tau_ij using pyThermoDB YAML reference_content supplied in args to build the ModelSource."
-        ),
-    )
-    # ! reference validation tool
+    # ! Supporting diagnostic tool
     mcp.tool(
         check_yaml_reference,
         description="Validate pythermodb YAML reference content for use with pyThermoDB.",
@@ -196,26 +182,29 @@ def run_mcp(
         mode: RunMode = "stdio",
         http_config: "MCPHTTPConfig | None" = None
 ) -> None:
+    # NOTE: Server creation is centralized so stdio and HTTP expose identical capabilities.
     mcp = create_mcp_server()
     if mode == "stdio":
         mcp.run()
         return
 
     if http_config is None:
-        from pythermomodels_mcp.models.refs import MCPHTTPConfig
+        from pythermocalcdb_nasa_mcp.models.refs import MCPHTTPConfig
 
         config = MCPHTTPConfig()
     else:
         config = http_config
+    # NOTE: HTTP settings are transport-only and do not affect scientific calculations.
     mcp.run(transport="http", host=config.host,
             port=config.port, path=config.path)
 
 
 # SECTION: Main execution
 def main() -> None:
+    # NOTE: CLI entrypoint for MCP clients and local development.
     parser = argparse.ArgumentParser(
-        prog="pythermomodels-mcp",
-        description="Run PyThermoModels MCP server.",
+        prog="pythermocalcdb-nasa-mcp",
+        description="Run PyThermoCalcDB-NASA MCP server.",
     )
 
     parser.add_argument(
@@ -250,8 +239,9 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # NOTE: Route to HTTP only when explicitly requested; stdio is the default MCP transport.
     if args.mode == "http":
-        from pythermomodels_mcp.models.refs import MCPHTTPConfig
+        from pythermocalcdb_nasa_mcp.models.refs import MCPHTTPConfig
 
         run_mcp(
             mode="http",
