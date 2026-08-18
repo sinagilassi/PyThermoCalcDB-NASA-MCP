@@ -1,0 +1,45 @@
+resource: pythermocalcdb-nasa://guidance/agent-checklist
+purpose: >
+  Provide concise operational rules for agents using PyThermoCalcDB-NASA-MCP.
+
+before_any_tool_call:
+  - Read the relevant workflow resource.
+  - Confirm the user provided reference_content or a trustworthy source for it.
+  - Do not invent component properties, NASA coefficients, or temperature ranges.
+  - Use check_yaml_reference when reference YAML validity is uncertain.
+  - Use K for temperature.unit.
+
+species_calculation_checklist:
+  - Select one of calc_H_T, calc_S_T, calc_G_T, or calc_Cp_T.
+  - Verify component.name, component.formula, and component.state match reference_content.
+  - Use basis: molar unless the user explicitly asks for mass basis.
+  - For mass basis, confirm MW is present.
+  - Confirm requested temperature is within Tmin/Tmax.
+
+reaction_calculation_checklist:
+  - Select one of calc_dH_rxn_STD, calc_dS_rxn_STD, calc_dG_rxn_STD, or calc_Keq.
+  - Ensure the reaction equation uses state-qualified species, for example CO(g).
+  - Ensure components includes every reactant and product.
+  - Ensure all reaction species exist in reference_content.
+  - Confirm requested temperature is within Tmin/Tmax for every species.
+
+response_handling:
+  success_true:
+    - Read results.value and results.unit.
+    - Include warnings when reporting boundary or diagnostic information.
+  success_false:
+    - Do not report a numerical result.
+    - Use message as the main failure reason.
+    - Use warnings as concrete corrections for the next call.
+
+situational_guidance:
+  user_requests_temperature_outside_range:
+    action: Return or explain the structured failure unless another valid reference table is supplied.
+  user_omits_reference_content:
+    action: Ask for caller-provided reference_content.
+  user_asks_for_builtin_or_example_data:
+    action: Explain that bundled examples or tests are not authoritative scientific data sources for MCP operation.
+  user_requests_pressure_dependent_property:
+    action: Explain that the exposed NASA methods do not accept pressure.
+  user_requests_unknown_species:
+    action: Require a matching reference row; do not approximate coefficients.

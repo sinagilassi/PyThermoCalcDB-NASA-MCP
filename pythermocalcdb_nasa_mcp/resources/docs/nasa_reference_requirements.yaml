@@ -1,0 +1,86 @@
+resource: pythermocalcdb-nasa://references/nasa-requirements
+purpose: >
+  Explain what reference_content must contain before an agent calls any
+  PyThermoCalcDB-NASA-MCP calculation tool.
+
+reference_content_contract:
+  format: pyThermoDB YAML string
+  root_required_key: REFERENCES
+  expected_table_family: NASA polynomial data
+  caller_responsibility:
+    - Provide the complete reference_content string in every calculation request.
+    - Do not ask the LLM to invent missing thermodynamic coefficients.
+    - Use check_yaml_reference first when the YAML structure is uncertain.
+
+component_identity:
+  required_fields:
+    - name
+    - formula
+    - state
+  state_values:
+    - g
+    - l
+    - s
+    - aq
+  matching_rule: >
+    Each requested component must match a row in reference_content by name,
+    formula, and state. For the default component_key, the calculation layer
+    reads data through the Name-Formula alias.
+
+required_symbols:
+  nasa9_molar:
+    - a1
+    - a2
+    - a3
+    - a4
+    - a5
+    - a6
+    - a7
+    - b1
+    - b2
+  nasa7_molar:
+    - a1
+    - a2
+    - a3
+    - a4
+    - a5
+    - a6
+    - a7
+  mass_basis_extra:
+    - MW
+  range_validation:
+    - Tmin
+    - Tmax
+
+temperature_policy:
+  accepted_unit: K
+  strict_range_check: true
+  behavior: >
+    The MCP wrapper returns success: false when the requested temperature is
+    outside Tmin/Tmax for any required component. It does not extrapolate NASA
+    polynomials.
+
+common_failures:
+  invalid_yaml:
+    symptom: success is false and message mentions YAML parsing.
+    correction: Repair reference_content syntax before retrying.
+  missing_component:
+    symptom: success is false and message mentions ModelSource construction.
+    correction: Ensure name, formula, and state match a reference row exactly.
+  missing_symbols:
+    symptom: success is false and warnings list missing symbols.
+    correction: Provide a NASA table containing all required symbols.
+  out_of_range_temperature:
+    symptom: success is false and warnings list supported Tmin/Tmax.
+    correction: Use a temperature inside the reference range or supply another reference table.
+
+agent_boundaries:
+  no_bundled_data_assumption: >
+    Agents must not assume this MCP package provides authoritative NASA data.
+    Reference data is supplied by the caller for each calculation.
+  no_example_data_routing: >
+    Do not route users to package test fixtures or example data files as a
+    substitute for caller-provided reference_content.
+  deterministic_scope: >
+    The MCP layer validates and orchestrates. It does not choose, fetch, infer,
+    or repair scientific data beyond validating the supplied reference_content.

@@ -1,0 +1,72 @@
+resource: pythermocalcdb-nasa://workflows/reaction-properties
+purpose: >
+  Guide agents through NASA standard reaction property and equilibrium constant calculations.
+
+available_tools:
+  calc_dH_rxn_STD:
+    result: standard enthalpy change of reaction
+    typical_unit: J/mol
+  calc_dS_rxn_STD:
+    result: standard entropy change of reaction
+    typical_unit: J/mol.K
+  calc_dG_rxn_STD:
+    result: standard Gibbs free energy change of reaction
+    typical_unit: J/mol
+  calc_Keq:
+    result: equilibrium constant
+    typical_unit: dimensionless
+
+request_shape:
+  request:
+    name: Water-Gas Shift Reaction
+    reaction: CO(g) + H2O(g) => CO2(g) + H2(g)
+    components:
+      - name: carbon monoxide
+        formula: CO
+        state: g
+      - name: dihydrogen monoxide
+        formula: H2O
+        state: g
+      - name: carbon dioxide
+        formula: CO2
+        state: g
+      - name: dihydrogen
+        formula: H2
+        state: g
+    temperature:
+      value: 300.0
+      unit: K
+    reference_content: "REFERENCES: ..."
+    component_key: Name-Formula
+    nasa_type: nasa9
+
+reaction_requirements:
+  equation_species_format: Formula(state)
+  supported_arrows:
+    - "=>"
+    - "<=>"
+    - "="
+  component_coverage: >
+    Every species token in the reaction equation must appear in components with
+    matching formula and state.
+  reference_coverage: >
+    Every component in the reaction must have NASA coefficients and Tmin/Tmax
+    in reference_content.
+
+agent_workflow:
+  - Read pythermocalcdb-nasa://references/nasa-requirements.
+  - Parse the reaction equation and list all Formula(state) species.
+  - Build components from the reference rows for every reactant and product.
+  - Confirm all reaction components are inside the requested temperature range.
+  - Call the property-specific reaction tool.
+  - For calc_Keq, report a dimensionless equilibrium constant.
+  - If success is false, correct missing species, reference rows, or temperature range.
+
+agent_boundaries:
+  reference_content_source: caller supplied
+  no_data_file_reference: >
+    Do not direct agents to bundled data examples or test fixtures. The agent
+    should request or use caller-provided pyThermoDB YAML reference_content.
+  invalid_or_missing_data: >
+    Return the structured failure to the user and explain which required
+    component, symbol, or temperature range is missing.

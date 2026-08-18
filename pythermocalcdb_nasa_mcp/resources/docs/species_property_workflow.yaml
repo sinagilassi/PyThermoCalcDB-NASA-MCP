@@ -1,0 +1,66 @@
+resource: pythermocalcdb-nasa://workflows/species-properties
+purpose: >
+  Guide agents through single-species NASA property calculations.
+
+available_tools:
+  calc_H_T:
+    result: enthalpy
+    typical_unit: J/mol for molar basis
+  calc_S_T:
+    result: entropy
+    typical_unit: J/mol.K for molar basis
+  calc_G_T:
+    result: Gibbs free energy
+    typical_unit: J/mol for molar basis
+  calc_Cp_T:
+    result: heat capacity
+    typical_unit: J/mol.K for molar basis
+
+request_shape:
+  request:
+    component:
+      name: carbon dioxide
+      formula: CO2
+      state: g
+    temperature:
+      value: 300.0
+      unit: K
+    reference_content: "REFERENCES: ..."
+    component_key: Name-Formula
+    nasa_type: nasa9
+    basis: molar
+
+decision_rules:
+  property_selection:
+    enthalpy: calc_H_T
+    entropy: calc_S_T
+    gibbs_free_energy: calc_G_T
+    heat_capacity: calc_Cp_T
+  component_key:
+    default: Name-Formula
+    change_only_if: The supplied reference/model workflow requires another pyThermoLinkDB key.
+  nasa_type:
+    default: nasa9
+    nasa9_requires: a1-a7, b1, b2
+    nasa7_requires: a1-a7
+  basis:
+    default: molar
+    mass_basis_requires: MW
+
+agent_workflow:
+  - Read pythermocalcdb-nasa://references/nasa-requirements.
+  - Identify the exact component name, formula, and state from reference_content.
+  - Confirm temperature.unit is K.
+  - Confirm temperature.value is within Tmin/Tmax for the selected component.
+  - Call the property-specific tool.
+  - If success is false, use message and warnings to correct the next request.
+  - Report results.value with results.unit.
+
+agent_boundaries:
+  reference_content_source: caller supplied
+  no_data_file_reference: >
+    Do not direct agents to bundled data examples or test fixtures. The agent
+    should request or use caller-provided pyThermoDB YAML reference_content.
+  invalid_or_missing_data: >
+    Return the structured failure to the user and explain which required
+    component, symbol, or temperature range is missing.
