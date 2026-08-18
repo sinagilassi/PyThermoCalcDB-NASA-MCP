@@ -10,6 +10,7 @@ from pythermodb_settings.models import Component, ComponentKey, Temperature
 # NOTE: These aliases mirror the accepted public options in pythermocalcdb-nasa.
 NASAType = Literal["nasa7", "nasa9"]
 Basis = Literal["molar", "mass"]
+Source = Literal["database", "reference"]
 
 
 # SECTION: Domain-backed input models
@@ -37,19 +38,15 @@ class SpeciesPropertyRequest(BaseModel):
 
     component: ComponentInput
     temperature: TemperatureInput
-    reference_content: str = Field(description="pyThermoDB YAML reference content.")
+    source: Source = Field(default="database")
+    reference_content: str | None = Field(
+        default=None,
+        description="Externally prepared pyThermoDB YAML reference content. Required only when source='reference'.",
+    )
     component_key: ComponentKey = Field(default="Name-Formula")
     nasa_type: NASAType = Field(default="nasa9")
     basis: Basis = Field(default="molar")
     mode: str | None = Field(default=None, description="Optional mode forwarded to the underlying package.")
-
-    @field_validator("reference_content")
-    @classmethod
-    def reference_content_must_not_be_blank(cls, value: str) -> str:
-        # NOTE: Empty references cannot be passed to pyThermoDB safely.
-        if not value.strip():
-            raise ValueError("reference_content must not be blank.")
-        return value
 
     @field_validator("temperature")
     @classmethod
@@ -70,18 +67,14 @@ class ReactionPropertyRequest(BaseModel):
     reaction: str = Field(description='Reaction equation, for example "CO(g) + H2O(g) => CO2(g) + H2(g)".')
     components: list[ComponentInput] = Field(min_length=1)
     temperature: TemperatureInput
-    reference_content: str = Field(description="pyThermoDB YAML reference content.")
+    source: Source = Field(default="database")
+    reference_content: str | None = Field(
+        default=None,
+        description="Externally prepared pyThermoDB YAML reference content. Required only when source='reference'.",
+    )
     component_key: ComponentKey = Field(default="Name-Formula")
     nasa_type: NASAType = Field(default="nasa9")
     mode: str | None = Field(default=None, description="Optional mode forwarded to the underlying package.")
-
-    @field_validator("reference_content")
-    @classmethod
-    def reference_content_must_not_be_blank(cls, value: str) -> str:
-        # NOTE: Empty references cannot be passed to pyThermoDB safely.
-        if not value.strip():
-            raise ValueError("reference_content must not be blank.")
-        return value
 
     @field_validator("temperature")
     @classmethod
