@@ -46,6 +46,7 @@ def create_mcp_server() -> "FastMCP":
         calc_G_T,
         calc_H_T,
         calc_Keq,
+        calc_Keq_vh_shortcut,
         calc_S_T,
         calc_dG_rxn_STD,
         calc_dH_rxn_STD,
@@ -104,7 +105,7 @@ def create_mcp_server() -> "FastMCP":
     @mcp.resource(
         uri="pythermocalcdb-nasa://workflows/reaction-properties",
         name="Reaction Property Workflow",
-        description="Agent workflow for dH_rxn_STD, dS_rxn_STD, dG_rxn_STD, and Keq reaction calculations.",
+        description="Agent workflow for dH_rxn_STD, dS_rxn_STD, dG_rxn_STD, Keq, and Keq_vh_shortcut reaction calculations.",
         mime_type="application/yaml",
         tags={
             "workflow",
@@ -166,6 +167,10 @@ def create_mcp_server() -> "FastMCP":
     mcp.tool(
         calc_Keq,
         description="Calculate reaction equilibrium constant Keq using the embedded NASA-9 database by default, or caller-supplied reference_content when source='reference'.",
+    )
+    mcp.tool(
+        calc_Keq_vh_shortcut,
+        description="Calculate reaction equilibrium constant Keq_vh_shortcut using the van't Hoff shortcut and the embedded NASA-9 database by default, or caller-supplied reference_content when source='reference'.",
     )
     # ! Supporting diagnostic tool
     mcp.tool(
