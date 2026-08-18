@@ -12,6 +12,7 @@ from pythermocalcdb_nasa import (
     G_T,
     H_T,
     Keq,
+    Keq_vh_shortcut,
     S_T,
     dG_rxn_STD,
     dH_rxn_STD,
@@ -83,6 +84,12 @@ def calc_dG_rxn_STD(request: ReactionPropertyRequest) -> dict[str, Any]:
 def calc_Keq(request: ReactionPropertyRequest) -> dict[str, Any]:
     """Calculate reaction equilibrium constant at temperature T."""
     return _run_reaction_property("Keq", Keq, request)
+
+
+# SECTION: Calculate equilibrium constant with van't Hoff shortcut
+def calc_Keq_vh_shortcut(request: ReactionPropertyRequest) -> dict[str, Any]:
+    """Calculate reaction equilibrium constant at temperature T using the van't Hoff shortcut."""
+    return _run_reaction_property("Keq_vh_shortcut", Keq_vh_shortcut, request)
 
 
 # SECTION: Run species property pipeline
